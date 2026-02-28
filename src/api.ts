@@ -111,15 +111,12 @@ export async function createSession(): Promise<ApiResponse<Session>> {
   return "error" in data
     ? { ok: false, data }
     : data.session.valid
-      ? {
-          ok: true,
-          data: _session({ sid: data.session.sid }),
-        }
+      ? { ok: true, data: _session({ sid: data.session.sid }) }
       : {
           ok: false,
+          // construct our own error, since this doesn't return an error code
           data: {
             error: {
-              // construct our own error, since this doesn't return an error code
               key: "invalid-session",
               message: data.session.message,
               hint: null,
@@ -128,19 +125,13 @@ export async function createSession(): Promise<ApiResponse<Session>> {
         };
 }
 
-type AuthSession = {
-  id: SID;
-  current_session: boolean;
-  user_agent?: string;
-};
+type AuthSession = { id: SID; current_session: boolean; user_agent?: string };
 type APIAuthSessionResponse = { sessions: AuthSession[] };
 export async function getAuthSessions(
   session: Session
 ): Promise<ApiResponse<APIAuthSessionResponse>> {
   const url = new URL("auth/sessions", API_URL);
-  const response = await api(session, url, {
-    method: "GET",
-  });
+  const response = await api(session, url, { method: "GET" });
   const data = (await response.json()) as ApiError | APIAuthSessionResponse;
   return "error" in data ? { ok: false, data } : { ok: true, data };
 }
@@ -149,9 +140,7 @@ export async function deleteAuthSession(
   sid: SID
 ): Promise<ApiResponse<null>> {
   const url = new URL(`auth/session/${sid}`, API_URL);
-  const response = await api(session, url, {
-    method: "DELETE",
-  });
+  const response = await api(session, url, { method: "DELETE" });
   return response.ok
     ? { ok: true, data: null }
     : { ok: false, data: (await response.json()) as ApiError };
