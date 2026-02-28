@@ -11,6 +11,7 @@ export type Session = { sid: SID | null } & { readonly [tag]: "Session" };
 const _session = (session: Omit<Session, typeof tag>): Session =>
   session as Session;
 
+export const USER_AGENT = "pihole-sync" as const;
 function api(
   session: Session | null,
   ...args: Parameters<typeof globalThis.fetch>
@@ -19,7 +20,7 @@ function api(
   return globalThis.fetch(args[0], {
     ...args[1],
     headers: {
-      "User-Agent": "pihole-sync",
+      "User-Agent": USER_AGENT,
       "Content-Type": "application/json",
       ...args[1]?.headers,
       ...session_headers,
@@ -145,12 +146,16 @@ export async function getAuthSessions(
   const data = (await response.json()) as ApiError | APIAuthSessionResponse;
   return "error" in data ? { ok: false, data } : { ok: true, data };
 }
-export async function deleteAuthSession(session: Session, sid: SID) {
+export async function deleteAuthSession(
+  session: Session,
+  sid: SID
+): Promise<ApiResponse<null>> {
   const url = new URL(`auth/session/${sid}`, API_URL);
   const response = await api(session, url, {
     method: "DELETE",
     headers: {},
   });
-  const data = (await response.json()) as ApiError | object;
-  return "error" in data ? { ok: false, data } : { ok: true, data };
+  return response.ok
+    ? { ok: true, data: null }
+    : { ok: false, data: (await response.json()) as ApiError };
 }

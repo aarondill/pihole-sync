@@ -3,9 +3,12 @@ import { Writable } from "node:stream";
 import { objectKeys } from "tsafe/objectKeys";
 import {
   createSession,
+  deleteAuthSession,
+  getAuthSessions,
   postDomain,
   postList,
   updateGravity,
+  USER_AGENT,
   type Domain,
   type List,
   type Session,
@@ -58,10 +61,22 @@ async function push(s: Session) {
     });
   console.log("Done!");
 }
+async function cleanupSessions(s: Session) {
+  const sessions = await getAuthSessions(s);
+  if (!sessions.ok) throw new Error("Failed to get sessions");
+  const remove = sessions.data.sessions
+    .filter(s => !s.current_session && s.user_agent === USER_AGENT)
+    .map(({ id }) => id);
+  console.log("Removing old sessions...");
+  await Promise.all(remove.map(id => deleteAuthSession(s, id)));
+  console.log("Done!");
+}
 
 const res = await createSession();
 if (!res.ok) throw new Error("Failed to create session");
 const session = res.data;
+
+await cleanupSessions(session);
 await push(session);
 // Keep this process alive forever
 setInterval(() => void 0, 2 ** 30);
