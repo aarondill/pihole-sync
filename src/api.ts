@@ -3,14 +3,29 @@ export type ApiError = {
   error: { key: string; message: string; hint: string | null };
 };
 
-type SID = string & { __SID__: never };
-const api_options = (sid: SID | null) => ({
-  headers: {
-    sid,
-    user_agent: "pihole-sync",
-    "Content-Type": "application/json",
-  },
-});
+declare const tag: unique symbol;
+type SID = string & { readonly [tag]: "SID" };
+// This is only obtainable via createAuthToken
+export type Session = { sid: SID } & { readonly [tag]: "Session" };
+
+function api(
+  session: Session | null,
+  ...args: Parameters<typeof globalThis.fetch>
+) {
+  const session_headers = session ? { sid: session.sid } : null;
+  return globalThis.fetch(args[0], {
+    ...args[1],
+    headers: {
+      user_agent: "pihole-sync",
+      "Content-Type": "application/json",
+      ...args[1]?.headers,
+      ...session_headers,
+    },
+  });
+}
+// shadow fetch for this file so we have to use the api function
+const fetch = null;
+void fetch;
 
 // Trailing slash is important for later URL calls using this as base
 export const API_URL = new URL(
@@ -27,14 +42,16 @@ export type List = {
 export type ApiListsRequest = List; // POST /api/lists?type=$TYPE
 export type ApiListsResponse = { lists: List[] }; // GET /api/lists
 
-export async function postList(list: List): Promise<ApiResponse<object>> {
+export async function postList(
+  session: Session,
+  list: List
+): Promise<ApiResponse<object>> {
   const url = new URL(`lists`, API_URL);
   url.searchParams.set("type", list.type);
   const body: ApiListsRequest = list;
-  const response = await fetch(url, {
+  const response = await api(session, url, {
     method: "POST",
     body: JSON.stringify(body),
-    headers: {},
   });
   const data = (await response.json()) as ApiError | object;
   return "error" in data ? { ok: false, data } : { ok: true, data };
@@ -48,47 +65,47 @@ export type Domain = {
 };
 export type ApiDomainsRequest = Domain; // POST /api/domains/$TYPE/$KIND
 export type ApiDomainsResponse = { domains: Domain[] }; // GET /api/domains
-
-export async function postDomain(domain: Domain): Promise<ApiResponse<object>> {
+export async function postDomain(
+  session: Session,
+  domain: Domain
+): Promise<ApiResponse<object>> {
   const baseUrl = new URL(`domains/${domain.type}/`, API_URL);
   const url = new URL(domain.kind, baseUrl);
   const body: ApiDomainsRequest = domain;
-  const response = await fetch(url, {
+  const response = await api(session, url, {
     method: "POST",
     body: JSON.stringify(body),
-    headers: {},
   });
   const data = (await response.json()) as ApiError | object;
   return "error" in data ? { ok: false, data } : { ok: true, data };
 }
 
-export async function updateGravity(): Promise<
-  ApiResponse<NonNullable<Response["body"]>>
-> {
+export async function updateGravity(
+  session: Session
+): Promise<ApiResponse<NonNullable<Response["body"]>>> {
   const url = new URL("action/gravity", API_URL);
-  const res = await fetch(url, {
-    method: "POST",
-  });
-  if (!res.ok) {
-    return { ok: false, data: await res.json() };
-  }
+  const res = await api(session, url, { method: "POST" });
+  if (!res.ok) return { ok: false, data: await res.json() };
   if (!res.body) throw new Error("No body");
   return { ok: true, data: res.body };
 }
 
-export type AuthToken = { session: { sid: SID } };
-export type ApiAuthTokenRequest = { password: string };
-export async function createAuthToken(): Promise<ApiResponse<AuthToken>> {
+export async function createSession(): Promise<ApiResponse<Session>> {
   const password = process.env.PIHOLE_PASSWORD ?? "";
   const url = new URL("auth", API_URL);
-  const body: ApiAuthTokenRequest = { password };
-  const response = await fetch(url, {
+  type api_request = { password: string };
+  const body: api_request = { password };
+  // Explicit null for session, since it doesn't exist yet
+  const response = await api(null, url, {
     method: "POST",
     body: JSON.stringify(body),
     headers: {},
   });
-  const data = (await response.json()) as ApiError | AuthToken;
-  return "error" in data ? { ok: false, data } : { ok: true, data };
+  type api_res = { session: { sid: SID } };
+  const data = (await response.json()) as ApiError | api_res;
+  return "error" in data
+    ? { ok: false, data }
+    : { ok: true, data: { sid: data.session.sid } as Session };
 }
 
 type AuthSession = {
@@ -97,20 +114,20 @@ type AuthSession = {
   user_agent?: string;
 };
 type APIAuthSessionResponse = { sessions: AuthSession[] };
-export async function getAuthSessions(): Promise<
-  ApiResponse<APIAuthSessionResponse>
-> {
+export async function getAuthSessions(
+  session: Session
+): Promise<ApiResponse<APIAuthSessionResponse>> {
   const url = new URL("auth/sessions", API_URL);
-  const response = await fetch(url, {
+  const response = await api(session, url, {
     method: "GET",
     headers: {},
   });
   const data = (await response.json()) as ApiError | APIAuthSessionResponse;
   return "error" in data ? { ok: false, data } : { ok: true, data };
 }
-export async function deleteAuthSession(sid: SID) {
+export async function deleteAuthSession(session: Session, sid: SID) {
   const url = new URL(`auth/session/${sid}`, API_URL);
-  const response = await fetch(url, {
+  const response = await api(session, url, {
     method: "DELETE",
     headers: {},
   });
