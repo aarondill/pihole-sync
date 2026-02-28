@@ -1,7 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { Writable } from "node:stream";
 import { objectKeys } from "tsafe/objectKeys";
-import { Domain, List, postDomain, postList, updateGravity } from "./api.js";
+import {
+  createSession,
+  Domain,
+  List,
+  postDomain,
+  postList,
+  Session,
+  updateGravity,
+} from "./api.ts";
 
 type DomainConfig = Omit<Domain, "type">;
 
@@ -15,12 +23,12 @@ const config: JSONConfig = JSON.parse(await readFile(configFile, "utf-8"));
 
 // Pushes current config to Pi-hole
 // NOTE: does *not* remove any domains or lists that are not in the config
-async function push() {
+async function push(s: Session) {
   let ok = true;
 
   for (const type of objectKeys(config.lists)) {
     for (const list of config.lists[type]) {
-      const response = await postList({ type, address: list });
+      const response = await postList(s, { type, address: list });
       if (response.ok) console.log(`Updated ${type} list ${list}`);
       else console.error(`Failed to add list ${list}:`, response.data);
       ok &&= response.ok;
@@ -29,7 +37,7 @@ async function push() {
 
   for (const type of objectKeys(config.domains)) {
     for (const domain of config.domains[type]) {
-      const response = await postDomain({ type, ...domain });
+      const response = await postDomain(s, { type, ...domain });
       if (response.ok) console.log(`Updated ${type} domain ${domain.domain}`);
       else
         console.error(`Failed to add domain ${domain.domain}:`, response.data);
@@ -41,9 +49,16 @@ async function push() {
   else console.log("Update done!");
 
   console.log("Updating gravity.db");
-  const res = await updateGravity();
+  const res = await updateGravity(s);
   if (!res.ok) console.log("Gravity Failed: ", res.data);
   else res.data.pipeTo(Writable.toWeb(process.stdout));
 }
 
-await push();
+const res = await createSession();
+if (!res.ok) throw new Error("Failed to create session");
+const session = res.data;
+await push(session);
+console.log("Done!");
+// Keep this process alive forever
+setInterval(() => void 0, Infinity);
+// TODO: pull on an interval
