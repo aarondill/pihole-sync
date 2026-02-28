@@ -1,6 +1,12 @@
-FROM node:25.7.0-alpine
+FROM node:25-alpine
 WORKDIR /app
+
+RUN npm install -g pnpm
+
+CMD ["pnpm", "start"]
+
+# Copy lock file if present
 COPY package.json /app
-RUN npm install
+RUN pnpm install --prod
+
 COPY . /app
-CMD ["npm", "run", "start"]
