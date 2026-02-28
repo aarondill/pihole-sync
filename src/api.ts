@@ -103,7 +103,6 @@ export async function createSession(): Promise<ApiResponse<Session>> {
   const response = await api(null, url, {
     method: "POST",
     body: JSON.stringify(body),
-    headers: {},
   });
   type api_res = {
     session: { sid: SID | null; valid: boolean; message: string };
@@ -141,7 +140,6 @@ export async function getAuthSessions(
   const url = new URL("auth/sessions", API_URL);
   const response = await api(session, url, {
     method: "GET",
-    headers: {},
   });
   const data = (await response.json()) as ApiError | APIAuthSessionResponse;
   return "error" in data ? { ok: false, data } : { ok: true, data };
@@ -153,7 +151,6 @@ export async function deleteAuthSession(
   const url = new URL(`auth/session/${sid}`, API_URL);
   const response = await api(session, url, {
     method: "DELETE",
-    headers: {},
   });
   return response.ok
     ? { ok: true, data: null }
