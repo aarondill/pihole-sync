@@ -5,18 +5,21 @@ export type ApiError = {
 
 declare const tag: unique symbol;
 type SID = string & { readonly [tag]: "SID" };
-// This is only obtainable via createAuthToken
-export type Session = { sid: SID } & { readonly [tag]: "Session" };
+// This is only obtainable via createAuthToken. Note that is there's no password, sid is null
+export type Session = { sid: SID | null } & { readonly [tag]: "Session" };
+// type-safe construct a session
+const _session = (session: Omit<Session, typeof tag>): Session =>
+  session as Session;
 
 function api(
   session: Session | null,
   ...args: Parameters<typeof globalThis.fetch>
 ) {
-  const session_headers = session ? { sid: session.sid } : null;
+  const session_headers = session?.sid ? { sid: session.sid } : null;
   return globalThis.fetch(args[0], {
     ...args[1],
     headers: {
-      user_agent: "pihole-sync",
+      "User-Agent": "pihole-sync",
       "Content-Type": "application/json",
       ...args[1]?.headers,
       ...session_headers,
@@ -101,11 +104,28 @@ export async function createSession(): Promise<ApiResponse<Session>> {
     body: JSON.stringify(body),
     headers: {},
   });
-  type api_res = { session: { sid: SID } };
+  type api_res = {
+    session: { sid: SID | null; valid: boolean; message: string };
+  };
   const data = (await response.json()) as ApiError | api_res;
   return "error" in data
     ? { ok: false, data }
-    : { ok: true, data: { sid: data.session.sid } as Session };
+    : data.session.valid
+      ? {
+          ok: true,
+          data: _session({ sid: data.session.sid }),
+        }
+      : {
+          ok: false,
+          data: {
+            error: {
+              // construct our own error, since this doesn't return an error code
+              key: "invalid-session",
+              message: data.session.message,
+              hint: null,
+            },
+          },
+        };
 }
 
 type AuthSession = {
