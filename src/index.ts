@@ -3,12 +3,12 @@ import { Writable } from "node:stream";
 import { objectKeys } from "tsafe/objectKeys";
 import {
   createSession,
-  Domain,
-  List,
   postDomain,
   postList,
-  Session,
   updateGravity,
+  type Domain,
+  type List,
+  type Session,
 } from "./api.ts";
 
 type DomainConfig = Omit<Domain, "type">;

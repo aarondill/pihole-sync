@@ -85,7 +85,7 @@ export async function updateGravity(
 ): Promise<ApiResponse<NonNullable<Response["body"]>>> {
   const url = new URL("action/gravity", API_URL);
   const res = await api(session, url, { method: "POST" });
-  if (!res.ok) return { ok: false, data: await res.json() };
+  if (!res.ok) return { ok: false, data: (await res.json()) as ApiError };
   if (!res.body) throw new Error("No body");
   return { ok: true, data: res.body };
 }
