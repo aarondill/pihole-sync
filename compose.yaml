@@ -11,4 +11,6 @@ services:
       - ./config.json:/config.json
     environment:
       PIHOLE_API: http://pi.hole/api
+      # May be empty (if no auth), or set to the application password
+      PIHOLE_PASSWORD: ""
     restart: unless-stopped

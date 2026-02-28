@@ -3,6 +3,15 @@ export type ApiError = {
   error: { key: string; message: string; hint: string | null };
 };
 
+type SID = string & { __SID__: never };
+const api_options = (sid: SID | null) => ({
+  headers: {
+    sid,
+    user_agent: "pihole-sync",
+    "Content-Type": "application/json",
+  },
+});
+
 // Trailing slash is important for later URL calls using this as base
 export const API_URL = new URL(
   (process.env.PIHOLE_API || "http://pi.hole/api") + "/"
@@ -65,4 +74,46 @@ export async function updateGravity(): Promise<
   }
   if (!res.body) throw new Error("No body");
   return { ok: true, data: res.body };
+}
+
+export type AuthToken = { session: { sid: SID } };
+export type ApiAuthTokenRequest = { password: string };
+export async function createAuthToken(): Promise<ApiResponse<AuthToken>> {
+  const password = process.env.PIHOLE_PASSWORD ?? "";
+  const url = new URL("auth", API_URL);
+  const body: ApiAuthTokenRequest = { password };
+  const response = await fetch(url, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: {},
+  });
+  const data = (await response.json()) as ApiError | AuthToken;
+  return "error" in data ? { ok: false, data } : { ok: true, data };
+}
+
+type AuthSession = {
+  id: SID;
+  current_session: boolean;
+  user_agent?: string;
+};
+type APIAuthSessionResponse = { sessions: AuthSession[] };
+export async function getAuthSessions(): Promise<
+  ApiResponse<APIAuthSessionResponse>
+> {
+  const url = new URL("auth/sessions", API_URL);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {},
+  });
+  const data = (await response.json()) as ApiError | APIAuthSessionResponse;
+  return "error" in data ? { ok: false, data } : { ok: true, data };
+}
+export async function deleteAuthSession(sid: SID) {
+  const url = new URL(`auth/session/${sid}`, API_URL);
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {},
+  });
+  const data = (await response.json()) as ApiError | object;
+  return "error" in data ? { ok: false, data } : { ok: true, data };
 }
