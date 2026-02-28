@@ -51,14 +51,18 @@ async function push(s: Session) {
   console.log("Updating gravity.db");
   const res = await updateGravity(s);
   if (!res.ok) console.log("Gravity Failed: ", res.data);
-  else res.data.pipeTo(Writable.toWeb(process.stdout));
+  else
+    await res.data.pipeTo(Writable.toWeb(process.stdout), {
+      preventClose: true,
+      preventAbort: true,
+    });
+  console.log("Done!");
 }
 
 const res = await createSession();
 if (!res.ok) throw new Error("Failed to create session");
 const session = res.data;
 await push(session);
-console.log("Done!");
 // Keep this process alive forever
-setInterval(() => void 0, Infinity);
+setInterval(() => void 0, 2 ** 30);
 // TODO: pull on an interval
