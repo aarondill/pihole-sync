@@ -1,0 +1,16 @@
+{
+  "name": "pihole-sync",
+  "version": "0.0.0",
+  "type": "module",
+  "author": "Aaron Dill <aaronsacks2006@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "node src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.2"
+  },
+  "dependencies": {
+    "tsafe": "^1.8.12"
+  }
+}

@@ -1,0 +1,46 @@
+import { readFile } from "node:fs/promises";
+import { Writable } from "node:stream";
+import { objectKeys } from "tsafe/objectKeys";
+import { Domain, List, postDomain, postList, updateGravity } from "./api.js";
+
+type DomainConfig = Omit<Domain, "type">;
+
+type JSONConfig = {
+  domains: Record<Domain["type"], DomainConfig[]>;
+  lists: Record<List["type"], string[]>;
+};
+const config: JSONConfig = JSON.parse(await readFile("./config.json", "utf-8"));
+// TODO: Validate config
+
+async function push() {
+  let ok = true;
+
+  for (const type of objectKeys(config.lists)) {
+    for (const list of config.lists[type]) {
+      const response = await postList({ type, address: list });
+      if (response.ok) console.log(`Updated ${type} list ${list}`);
+      else console.error(`Failed to add list ${list}:`, response.data);
+      ok &&= response.ok;
+    }
+  }
+
+  for (const type of objectKeys(config.domains)) {
+    for (const domain of config.domains[type]) {
+      const response = await postDomain({ type, ...domain });
+      if (response.ok) console.log(`Updated ${type} domain ${domain.domain}`);
+      else
+        console.error(`Failed to add domain ${domain.domain}:`, response.data);
+      ok &&= response.ok;
+    }
+  }
+
+  if (!ok) throw new Error("Failed to update");
+  else console.log("Update done!");
+
+  console.log("Updating gravity.db");
+  const res = await updateGravity();
+  if (!res.ok) console.log("Gravity Failed: ", res.data);
+  else res.data.pipeTo(Writable.toWeb(process.stdout));
+}
+
+await push();
