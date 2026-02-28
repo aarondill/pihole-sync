@@ -10,5 +10,5 @@ services:
     volumes:
       - ./config.json:/config.json
     environment:
-      - PIHOLE_API=http://pi.hole/api
+      PIHOLE_API: http://pi.hole/api
     restart: unless-stopped

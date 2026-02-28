@@ -9,9 +9,12 @@ type JSONConfig = {
   domains: Record<Domain["type"], DomainConfig[]>;
   lists: Record<List["type"], string[]>;
 };
-const config: JSONConfig = JSON.parse(await readFile("./config.json", "utf-8"));
+const configFile = process.env.CONFIG_FILE || "./config.json";
+const config: JSONConfig = JSON.parse(await readFile(configFile, "utf-8"));
 // TODO: Validate config
 
+// Pushes current config to Pi-hole
+// NOTE: does *not* remove any domains or lists that are not in the config
 async function push() {
   let ok = true;
 

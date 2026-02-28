@@ -2,8 +2,13 @@
 export type ApiError = {
   error: { key: string; message: string; hint: string | null };
 };
-export const API_URL = new URL("http://pi.hole/api/"); // Trailing slash is important
+
+// Trailing slash is important for later URL calls using this as base
+export const API_URL = new URL(
+  (process.env.PIHOLE_API || "http://pi.hole/api") + "/"
+);
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; data: ApiError };
+// TODO: authentication
 
 export type List = {
   address: string;
