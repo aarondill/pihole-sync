@@ -27,6 +27,9 @@ const config: JSONConfig = JSON.parse(await readFile(configFile, "utf-8"));
 // Pushes current config to Pi-hole
 // NOTE: does *not* remove any domains or lists that are not in the config
 async function push(s: Session) {
+  // Chore: fetch and diff first.
+  // Don't run gravity if nothing has changed.
+
   for (const type of objectKeys(config.lists)) {
     for (const list of config.lists[type]) {
       const response = await postList(s, { type, address: list });
