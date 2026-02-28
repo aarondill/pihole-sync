@@ -6,6 +6,7 @@
     "strict": true,
     "moduleResolution": "nodenext",
     "module": "preserve",
-    "target": "esnext"
+    "target": "esnext",
+    "allowImportingTsExtensions": true
   }
 }
