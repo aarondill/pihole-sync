@@ -1,3 +1,4 @@
+import { USER_AGENT } from "./base.ts";
 import { ActionsAPI } from "./methods/Actions.ts";
 import { AuthAPI } from "./methods/Auth.ts";
 import { DomainsAPI } from "./methods/Domains.ts";
@@ -24,10 +25,11 @@ export class Pihole {
     this.Actions = new ActionsAPI(this.API_URL, () => this.session);
     this.Auth = new AuthAPI(this.API_URL, () => this.session);
   }
-  async login(password: string) {
+  async login(password: string): Promise<Pihole> {
     const res = await this.Auth.POST({ password });
     if (!res.ok) throw new Error("Failed to create session");
     this.session = res.data;
+    return this;
   }
   async logout() {
     if (!this.session) return; // Do nothing if not logged in
@@ -37,4 +39,13 @@ export class Pihole {
   }
   // Allow `using Pihole` to be used as a context manager
   [Symbol.asyncDispose] = this.logout;
+  // Cleans up old sessions. This usually shouldn't be necessary, but if you don't call `logout` it will be
+  async cleanupSessions() {
+    const sessions = await this.Auth.getSessions();
+    if (!sessions.ok) throw new Error("Failed to get sessions");
+    const remove = sessions.data
+      .filter(s => !s.current_session && s.user_agent === USER_AGENT)
+      .map(({ id }) => id);
+    await Promise.all(remove.map(id => this.Auth.deleteSession(id)));
+  }
 }
