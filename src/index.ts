@@ -67,12 +67,27 @@ async function pull(api: Pihole): Promise<Config> {
 }
 
 const configFile = process.env.CONFIG_FILE || "./config.json";
-const config = await readFile(configFile, "utf-8").then(Config.decode);
 
 export const API_URL = new URL(process.env.PIHOLE_API || "http://pi.hole/api");
 const password = process.env.PIHOLE_PASSWORD ?? "";
-await using pihole = await new Pihole(API_URL).login(password);
+await using pihole = new Pihole(API_URL);
+
+while (!(await pihole.ping())) {
+  console.log("Pi-hole is not responding. Waiting...");
+  await new Promise(resolve => setTimeout(resolve, 1000 * 10));
+}
+
+await pihole.login(password);
+
+let lastFileContents = await fs.readFile(configFile, "utf-8");
+let config = ConfigToJSON.decode(lastFileContents);
 await push(pihole, config);
-// Keep this process alive forever
-// setInterval(() => void 0, 2 ** 30);
-// TODO: pull on an interval
+
+setInterval(async () => {
+  config = await pull(pihole);
+  const newFileContents = ConfigToJSON.encode(config);
+  if (newFileContents !== lastFileContents) {
+    lastFileContents = newFileContents;
+    await fs.writeFile(configFile, newFileContents + "\n");
+  }
+}, 1000 * 60);
