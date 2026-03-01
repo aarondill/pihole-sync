@@ -12,7 +12,7 @@ import {
   type Domain,
   type List,
   type Session,
-} from "./api.ts";
+} from "./api/index.ts";
 
 type DomainConfig = Omit<Domain, "type">;
 
