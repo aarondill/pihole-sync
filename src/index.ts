@@ -1,35 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { Writable } from "node:stream";
 import { objectKeys } from "tsafe/objectKeys";
-import { z } from "zod";
 import { Pihole } from "./api/index.ts";
-import { Domain, List } from "./api/types.ts";
-
-const DomainConfig = Domain.omit({ type: true });
-type DomainConfig = z.infer<typeof DomainConfig>;
-
-const JSONString = z.string().transform((str, ctx) => {
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    ctx.addIssue({ code: "custom", message: "Invalid JSON" });
-    return z.NEVER;
-  }
-});
-
-const Config = JSONString.pipe(
-  z.object({
-    domains: z.record(Domain.shape.type, z.array(DomainConfig)),
-    lists: z.record(List.shape.type, z.array(z.string())),
-  })
-);
-
-const configFile = process.env.CONFIG_FILE || "./config.json";
-const config = Config.decode(await readFile(configFile, "utf-8"));
-
+import { Config } from "./config.ts";
 // Pushes current config to Pi-hole
 // NOTE: does *not* remove any domains or lists that are not in the config
-async function push(api: Pihole) {
+async function push(api: Pihole, config: Config) {
   // Chore: fetch and diff first.
   // Don't run gravity if nothing has changed.
   for (const type of objectKeys(config.lists)) {
@@ -67,10 +43,13 @@ async function push(api: Pihole) {
   console.log("Done!");
 }
 
+const configFile = process.env.CONFIG_FILE || "./config.json";
+const config = await readFile(configFile, "utf-8").then(Config.decode);
+
 export const API_URL = new URL(process.env.PIHOLE_API || "http://pi.hole/api");
 const password = process.env.PIHOLE_PASSWORD ?? "";
 await using pihole = await new Pihole(API_URL).login(password);
-await push(pihole);
+await push(pihole, config);
 // Keep this process alive forever
 // setInterval(() => void 0, 2 ** 30);
 // TODO: pull on an interval
