@@ -37,10 +37,10 @@ const replacer = (_key: string, value: unknown) =>
         }, {})
     : value;
 
-export const Config = json({ replacer, space: 2 }).pipe(
-  z.object({
-    domains: z.record(Domain.shape.type, z.array(DomainConfig)),
-    lists: z.record(List.shape.type, z.array(z.string())),
-  })
-);
+export const Config = z.object({
+  domains: z.partialRecord(Domain.shape.type, z.array(DomainConfig)),
+  lists: z.partialRecord(List.shape.type, z.array(z.string())),
+});
 export type Config = z.infer<typeof Config>;
+
+export const ConfigToJSON = json({ replacer, space: 2 }).pipe(Config);

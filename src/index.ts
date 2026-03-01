@@ -8,8 +8,9 @@ import { Config } from "./config.ts";
 async function push(api: Pihole, config: Config) {
   // Chore: fetch and diff first.
   // Don't run gravity if nothing has changed.
-  for (const type of objectKeys(config.lists)) {
-    for (const list of config.lists[type]) {
+  for (const [type, lists] of objectEntries(config.lists)) {
+    if (!lists) continue; // Make typescript happy
+    for (const list of lists) {
       const response = await api.Lists.POST({ type, address: list });
       if (response.ok) console.log(`Updated ${type} list ${list}`);
       else {
@@ -19,8 +20,9 @@ async function push(api: Pihole, config: Config) {
     }
   }
 
-  for (const type of objectKeys(config.domains)) {
-    for (const domain of config.domains[type]) {
+  for (const [type, domains] of objectEntries(config.domains)) {
+    if (!domains) continue; // Make typescript happy
+    for (const domain of domains) {
       const response = await api.Domains.POST({ type, ...domain });
       if (response.ok) console.log(`Updated ${type} domain ${domain.domain}`);
       else {
