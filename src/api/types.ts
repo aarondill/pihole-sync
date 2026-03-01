@@ -32,7 +32,7 @@ export type List = z.infer<typeof List>;
 export const Domain = z.object({
   domain: z.string(),
   comment: z.string().nullable().optional(),
-  type: z.union([z.literal("block"), z.literal("allow")]),
+  type: z.union([z.literal("deny"), z.literal("allow")]),
   kind: z.union([z.literal("exact"), z.literal("regex")]),
 });
 export type Domain = z.infer<typeof Domain>;
