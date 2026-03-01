@@ -1,15 +1,12 @@
-import { ApiError, Domain, List, Session, _Session } from "./types.ts";
+import { ApiError, Domain, List, Session, SID } from "./types.ts";
 
 export type ApiResponse<T> =
   | { ok: true; data: T }
   | { ok: false; data: ApiError };
 
 export const USER_AGENT = "pihole-sync" as const;
-function api(
-  session: _Session | null,
-  ...args: Parameters<typeof globalThis.fetch>
-) {
-  const session_headers = session?.sid ? { sid: session.sid } : null;
+function api(sid: SID | null, ...args: Parameters<typeof globalThis.fetch>) {
+  const session_headers = sid ? { sid: sid } : null;
   return globalThis.fetch(args[0], {
     ...args[1],
     headers: {
@@ -44,7 +41,7 @@ export const Api = {
         .parse(await response.json());
       return "error" in data ? { ok: false, data } : { ok: true, data };
     },
-    async POST(session: _Session, body: List): Promise<ApiResponse<List[]>> {
+    async POST(session: SID, body: List): Promise<ApiResponse<List[]>> {
       const ResponseSchema = z
         .object({ lists: z.array(List) })
         .transform(data => data.lists); // TODO: generate once
@@ -61,10 +58,7 @@ export const Api = {
     },
   },
   Domains: {
-    async POST(
-      session: _Session,
-      body: Domain
-    ): Promise<ApiResponse<Domain[]>> {
+    async POST(session: SID, body: Domain): Promise<ApiResponse<Domain[]>> {
       const ResponseSchema = z
         .object({ domains: z.array(Domain) })
         .transform(data => data.domains); // TODO: generate once
@@ -78,7 +72,7 @@ export const Api = {
         .parse(await response.json());
       return "error" in data ? { ok: false, data } : { ok: true, data };
     },
-    async GET(session: _Session): Promise<ApiResponse<Domain[]>> {
+    async GET(session: SID): Promise<ApiResponse<Domain[]>> {
       const ResponseSchema = z
         .object({ domains: z.array(Domain) })
         .transform(data => data.domains); // TODO: generate once
@@ -93,7 +87,7 @@ export const Api = {
   Actions: {
     Gravity: {
       async POST(
-        session: _Session
+        session: SID
       ): Promise<ApiResponse<NonNullable<Response["body"]>>> {
         const url = new URL("action/gravity", API_URL);
         const res = await api(session, url, { method: "POST" });
@@ -105,7 +99,7 @@ export const Api = {
     },
   },
   Auth: {
-    async POST(body: { password: string }): Promise<ApiResponse<_Session>> {
+    async POST(body: { password: string }): Promise<ApiResponse<SID>> {
       // { "session": { "valid": true, "totp": false, "sid": "PB9uJXEu18pmfbH2Gdnbvg=", "csrf": "qJ5rsbqT0S59KuY1EeAfbQ=", "validity": 1800, "message": "password correct" }, "took": 1.2953979969024658 }
       const url = new URL("auth", API_URL);
       // Explicit null for session, since it doesn't exist yet
@@ -126,7 +120,7 @@ export const Api = {
       return "error" in data
         ? { ok: false, data }
         : data.session.valid
-          ? { ok: true, data: _Session.decode({ sid: data.session.sid }) }
+          ? { ok: true, data: SID.decode(data.session.sid) }
           : {
               ok: false,
               // construct our own error, since this doesn't return an error code
@@ -140,7 +134,7 @@ export const Api = {
             };
     },
     Sessions: {
-      async GET(session: _Session): Promise<ApiResponse<Session[]>> {
+      async GET(session: SID): Promise<ApiResponse<Session[]>> {
         const ResponseSchema = z
           .object({ sessions: z.array(Session) })
           .transform(data => data.sessions);
@@ -152,7 +146,7 @@ export const Api = {
         return "error" in data ? { ok: false, data } : { ok: true, data };
       },
       async DELETE(
-        session: _Session,
+        session: SID,
         id: Session["id"]
       ): Promise<ApiResponse<null>> {
         const url = new URL(`auth/session/${id}`, API_URL);

@@ -9,13 +9,9 @@ export const ApiError = z.object({
 });
 export type ApiError = z.infer<typeof ApiError>;
 
-export const SID = z.string().brand<"SID">();
-export type SID = z.infer<typeof SID>;
-
 // This is only obtainable via createAuthToken. Note that is there's no password, sid is null
-// This is not part of the API, but is used internally
-export const _Session = z.object({ sid: SID.nullable() }).brand<"Session">();
-export type _Session = z.infer<typeof _Session>;
+export const SID = z.string().brand<"SID">().nullable();
+export type SID = z.infer<typeof SID>;
 
 export const Session = z.object({
   id: z.int(),
