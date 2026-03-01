@@ -4,11 +4,23 @@ export type ApiResponse<T> =
   | { ok: true; data: T }
   | { ok: false; data: ApiError };
 
+function stopableTimeout(ms: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, stop: () => clearTimeout(timeout) };
+}
+
 export const USER_AGENT = "pihole-sync" as const;
+export const TIMEOUT = 1000 * 10;
 export function api(sid: SID | null, ...args: Parameters<typeof fetch>) {
   const session_headers = sid ? { sid: sid } : null;
-  return fetch(args[0], {
+  const timeout = stopableTimeout(TIMEOUT);
+  const signal = args[1]?.signal
+    ? AbortSignal.any([timeout.signal, args[1].signal])
+    : timeout.signal;
+  let res = fetch(args[0], {
     ...args[1],
+    signal,
     headers: {
       "User-Agent": USER_AGENT,
       "Content-Type": "application/json",
@@ -16,6 +28,10 @@ export function api(sid: SID | null, ...args: Parameters<typeof fetch>) {
       ...session_headers,
     },
   });
+  timeout.stop();
+  // The timeout isn't supposed to apply to the Body.
+  // This is especially important for updating Gravity, which can take a while.
+  return res;
 }
 
 export class ApiSection {
