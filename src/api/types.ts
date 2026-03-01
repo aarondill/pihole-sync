@@ -18,7 +18,7 @@ export const _Session = z.object({ sid: SID.nullable() }).brand<"Session">();
 export type _Session = z.infer<typeof _Session>;
 
 export const Session = z.object({
-  id: SID,
+  id: z.int(),
   current_session: z.boolean(),
   valid: z.boolean(),
   remote_addr: z.string(),

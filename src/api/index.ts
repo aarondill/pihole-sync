@@ -1,11 +1,4 @@
-import {
-  ApiError,
-  Domain,
-  List,
-  Session,
-  _Session,
-  type SID,
-} from "./types.ts";
+import { ApiError, Domain, List, Session, _Session } from "./types.ts";
 
 export type ApiResponse<T> =
   | { ok: true; data: T }
@@ -158,8 +151,11 @@ export const Api = {
           .parse(await response.json());
         return "error" in data ? { ok: false, data } : { ok: true, data };
       },
-      async DELETE(session: _Session, sid: SID): Promise<ApiResponse<null>> {
-        const url = new URL(`auth/session/${sid}`, API_URL);
+      async DELETE(
+        session: _Session,
+        id: Session["id"]
+      ): Promise<ApiResponse<null>> {
+        const url = new URL(`auth/session/${id}`, API_URL);
         const response = await api(session, url, { method: "DELETE" });
         return response.ok
           ? { ok: true, data: null }
