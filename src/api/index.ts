@@ -1,9 +1,9 @@
-import { USER_AGENT } from "./base.ts";
+import { api, USER_AGENT } from "./base.ts";
 import { ActionsAPI } from "./methods/Actions.ts";
 import { AuthAPI } from "./methods/Auth.ts";
 import { DomainsAPI } from "./methods/Domains.ts";
 import { ListsAPI } from "./methods/Lists.ts";
-import { SID } from "./types.ts";
+import { ApiError, SID } from "./types.ts";
 
 // Use `login` to create a Pihole instance
 export class Pihole {
@@ -25,6 +25,17 @@ export class Pihole {
     this.Actions = new ActionsAPI(this.API_URL, () => this.session);
     this.Auth = new AuthAPI(this.API_URL, () => this.session);
   }
+  async ping() {
+    let res;
+    try {
+      res = await api(null, this.API_URL);
+    } catch (e) {
+      return false;
+    }
+    const ret = await res.json().then(ApiError.safeParse);
+    return ret.success; // we expect a 404 error, but if there's a valid response, the API is alive
+  }
+
   async login(password: string): Promise<Pihole> {
     const res = await this.Auth.POST({ password });
     if (!res.ok) throw new Error("Failed to create session");
