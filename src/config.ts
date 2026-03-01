@@ -3,16 +3,41 @@ import { Domain, List } from "./api/types.ts";
 
 const DomainConfig = Domain.omit({ type: true });
 
-const JSONString = z.string().transform((str, ctx) => {
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    ctx.addIssue({ code: "custom", message: "Invalid JSON" });
-    return z.NEVER;
-  }
-});
+const json = (options?: {
+  replacer?: (this: unknown, key: string, value: unknown) => unknown;
+  reviver?: (this: unknown, key: string, value: unknown) => unknown;
+  space?: Parameters<typeof JSON.stringify>[2];
+}) =>
+  z.codec(z.string(), z.json(), {
+    decode: (jsonString, ctx) => {
+      try {
+        return JSON.parse(jsonString, options?.reviver);
+      } catch (err: any) {
+        ctx.issues.push({
+          code: "invalid_format",
+          format: "json",
+          input: jsonString,
+          message: err.message,
+        });
+        return z.NEVER;
+      }
+    },
+    encode: value => JSON.stringify(value, options?.replacer, options?.space),
+  });
 
-export const Config = JSONString.pipe(
+const replacer = (_key: string, value: unknown) =>
+  value instanceof Object &&
+  !(value instanceof Array) &&
+  Object.keys(value).length > 0
+    ? Object.keys(value)
+        .sort()
+        .reduce((sorted: Record<string, unknown>, key: string) => {
+          sorted[key] = (value as Record<string, unknown>)[key];
+          return sorted;
+        }, {})
+    : value;
+
+export const Config = json({ replacer, space: 2 }).pipe(
   z.object({
     domains: z.record(Domain.shape.type, z.array(DomainConfig)),
     lists: z.record(List.shape.type, z.array(z.string())),
