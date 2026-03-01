@@ -1,3 +1,4 @@
+import { id } from "tsafe";
 import { z } from "zod";
 import { Domain, List } from "./api/types.ts";
 
@@ -37,9 +38,25 @@ const replacer = (_key: string, value: unknown) =>
         }, {})
     : value;
 
+const sortBy =
+  <T>(key: (t: T) => any = id) =>
+  (a: T, b: T) => {
+    const aVal = key(a),
+      bVal = key(b);
+    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+  };
+const sortId = sortBy();
+const sortedString = z.codec(z.array(z.string()), z.array(z.string()), {
+  decode: value => value.sort(sortId),
+  encode: value => value.sort(sortId),
+});
+const sortedDomain = z.codec(z.array(DomainConfig), z.array(DomainConfig), {
+  decode: value => value.sort(sortBy(x => x.domain)),
+  encode: value => value.sort(sortBy(x => x.domain)),
+});
 export const Config = z.object({
-  domains: z.partialRecord(Domain.shape.type, z.array(DomainConfig)),
-  lists: z.partialRecord(List.shape.type, z.array(z.string())),
+  domains: z.partialRecord(Domain.shape.type, sortedDomain),
+  lists: z.partialRecord(List.shape.type, sortedString),
 });
 export type Config = z.infer<typeof Config>;
 
