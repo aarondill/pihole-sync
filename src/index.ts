@@ -1,8 +1,8 @@
-import { readFile } from "node:fs/promises";
+import * as fs from "node:fs/promises";
 import { Writable } from "node:stream";
-import { objectKeys } from "tsafe/objectKeys";
+import { objectEntries } from "tsafe";
 import { Pihole } from "./api/index.ts";
-import { Config } from "./config.ts";
+import { Config, ConfigToJSON } from "./config.ts";
 // Pushes current config to Pi-hole
 // NOTE: does *not* remove any domains or lists that are not in the config
 async function push(api: Pihole, config: Config) {
@@ -43,6 +43,27 @@ async function push(api: Pihole, config: Config) {
       preventAbort: true,
     });
   console.log("Done!");
+}
+async function pull(api: Pihole): Promise<Config> {
+  const [domains, lists] = await Promise.all([
+    api.Domains.GET(),
+    api.Lists.GET(),
+  ]);
+  const ok = domains.ok && lists.ok;
+  if (!ok) {
+    const msgs = [domains, lists].filter(x => !x.ok).map(x => x.data);
+    throw new Error("Failed to fetch: " + msgs.join(", "));
+  }
+  return Config.decode({
+    domains: domains.data.reduce((acc: Config["domains"], domain) => {
+      (acc[domain.type] ??= []).push(domain);
+      return acc;
+    }, {}),
+    lists: lists.data.reduce((acc: Config["lists"], list) => {
+      (acc[list.type] ??= []).push(list.address);
+      return acc;
+    }, {}),
+  });
 }
 
 const configFile = process.env.CONFIG_FILE || "./config.json";
