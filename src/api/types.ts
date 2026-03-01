@@ -25,14 +25,14 @@ export type Session = z.infer<typeof Session>;
 export const List = z.object({
   address: z.string(),
   comment: z.string().nullable().optional(),
-  type: z.union([z.literal("block"), z.literal("allow")]),
+  type: z.union([z.literal("allow"), z.literal("block")]),
 });
 export type List = z.infer<typeof List>;
 
 export const Domain = z.object({
-  domain: z.string(),
   comment: z.string().nullable().optional(),
-  type: z.union([z.literal("deny"), z.literal("allow")]),
+  domain: z.string(),
   kind: z.union([z.literal("exact"), z.literal("regex")]),
+  type: z.union([z.literal("allow"), z.literal("deny")]),
 });
 export type Domain = z.infer<typeof Domain>;
